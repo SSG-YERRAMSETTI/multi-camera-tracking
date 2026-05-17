@@ -1,0 +1,46 @@
+# ══════════════════════════════════════════════════════════════════
+#  Multi-Camera Live Object Tracking v3.0 — Requirements
+#  Best Python version: 3.10.x  (3.9 to 3.11 all work fine)
+#  DO NOT use Python 3.12+ — some OpenCV/PyTorch wheels lag behind
+# ══════════════════════════════════════════════════════════════════
+
+# ── Core ML ────────────────────────────────────────────────────────
+ultralytics>=8.2.0
+torch>=2.2.0
+torchvision>=0.17.0
+
+# ── Object Tracking ────────────────────────────────────────────────
+deep-sort-realtime>=1.3.2
+
+# ── Web Framework ──────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+websockets>=12.0
+python-multipart>=0.0.9
+
+# ── Video / Image ──────────────────────────────────────────────────
+opencv-python>=4.9.0
+Pillow>=10.3.0
+imagezmq>=1.1.1
+
+# ── Database ───────────────────────────────────────────────────────
+aiosqlite>=0.20.0
+sqlalchemy>=2.0.0
+
+# ── Data ───────────────────────────────────────────────────────────
+numpy>=1.26.0
+pandas>=2.2.0
+python-dateutil>=2.9.0
+
+# ── Config / Validation ────────────────────────────────────────────
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+
+# GPU NOTE: If you have an NVIDIA GPU, after installing run:
+# pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Then set "device": "cuda" in config.json
+
+# ── Vehicle Intelligence (NEW) ──────────────────────────────────────────────────
+easyocr>=1.7.1                # License plate OCR
+timm>=0.9.16                  # Stanford Cars make/model classifier backbone

@@ -1,0 +1,1813 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Camera Live Object Tracking v3.0</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg0: #06080f;
+      --bg1: #0b0f1c;
+      --bg2: #101828;
+      --bg3: #162035;
+      --border: #1c2a42;
+      --border2: #243450;
+      --text1: #c8d3e8;
+      --text2: #6b7a99;
+      --text3: #3a4a66;
+      --accent: #00d4aa;
+      --accent2: #00a882;
+      --amber: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --mono: 'IBM Plex Mono', monospace;
+      --sans: 'IBM Plex Sans', sans-serif;
+      --r: 6px;
+      --rl: 10px;
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    html,
+    body {
+      height: 100%;
+      background: var(--bg0);
+      color: var(--text1);
+      font-family: var(--sans);
+      font-size: 13px;
+      overflow: hidden
+    }
+
+    /* ── App shell ── */
+    .app {
+      display: grid;
+      grid-template-rows: 42px 1fr;
+      height: 100vh
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      background: var(--bg1);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 20px
+    }
+
+    .topbar-logo {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: .08em;
+      white-space: nowrap
+    }
+
+    .topbar-logo span {
+      color: var(--text2)
+    }
+
+    .topbar-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--border2)
+    }
+
+    .topbar-stat {
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .topbar-stat .label {
+      font-size: 10px;
+      color: var(--text3);
+      letter-spacing: .05em;
+      text-transform: uppercase
+    }
+
+    .topbar-stat .val {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--text1)
+    }
+
+    .topbar-right {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 12px
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-family: var(--mono);
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border2);
+      color: var(--text2);
+      transition: all .3s
+    }
+
+    .status-badge.ok {
+      border-color: var(--accent2);
+      color: var(--accent)
+    }
+
+    .status-badge.error {
+      border-color: var(--red);
+      color: var(--red)
+    }
+
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: currentColor
+    }
+
+    .status-dot.pulse {
+      animation: pulse 1.5s infinite
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .4
+      }
+    }
+
+    .ws-badge {
+      font-size: 10px;
+      font-family: var(--mono);
+      color: var(--text3)
+    }
+
+    .ws-badge.connected {
+      color: var(--accent)
+    }
+
+    /* ── Main 4-column grid — EXPLICIT placements prevent blank cell ── */
+    .main {
+      display: grid;
+      grid-template-columns: 200px 1fr 1fr 220px;
+      grid-template-rows: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      overflow: hidden;
+    }
+
+    /* Panel base */
+    .panel {
+      background: var(--bg1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    .panel-head {
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0
+    }
+
+    .panel-title {
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--text3);
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .panel-title .dot {
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--accent)
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 12px
+    }
+
+    .panel-body::-webkit-scrollbar {
+      width: 3px
+    }
+
+    .panel-body::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 2px
+    }
+
+    /* Camera panels */
+    .cam-panel {
+      background: #000;
+      position: relative;
+      overflow: hidden
+    }
+
+    .cam-feed {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block
+    }
+
+    .cam-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, .5) 0%, transparent 30%, transparent 70%, rgba(0, 0, 0, .6) 100%)
+    }
+
+    .cam-label-top {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between
+    }
+
+    .cam-name {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .rec-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--red);
+      animation: pulse 1s infinite
+    }
+
+    .cam-fps-badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      background: rgba(0, 0, 0, .6);
+      color: var(--accent);
+      padding: 2px 7px;
+      border-radius: 3px;
+      border: 1px solid rgba(0, 212, 170, .2)
+    }
+
+    .cam-label-bottom {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 8px 12px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between
+    }
+
+    .cam-frame-count {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: rgba(255, 255, 255, .4)
+    }
+
+    .cam-counts-row {
+      display: flex;
+      gap: 8px
+    }
+
+    .cam-count-chip {
+      font-family: var(--mono);
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(0, 0, 0, .7)
+    }
+
+    .cam-count-chip.car {
+      color: #60a5fa;
+      border: 1px solid rgba(96, 165, 250, .3)
+    }
+
+    .cam-count-chip.truck {
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, .3)
+    }
+
+    .cam-count-chip.bus {
+      color: var(--red);
+      border: 1px solid rgba(239, 68, 68, .3)
+    }
+
+    .cam-count-chip.person {
+      color: var(--accent);
+      border: 1px solid rgba(0, 212, 170, .3)
+    }
+
+    /* Counting line — absolutely inside each cam-panel, hidden by default */
+    .cam-line {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: var(--accent);
+      box-shadow: 0 0 6px var(--accent);
+      pointer-events: none;
+      display: none;
+      transition: top .3s
+    }
+
+    .cam-placeholder {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text3);
+      gap: 8px
+    }
+
+    .cam-placeholder svg {
+      opacity: .3
+    }
+
+    .cam-placeholder p {
+      font-family: var(--mono);
+      font-size: 11px
+    }
+
+    /* Controls */
+    .ctrl-group {
+      margin-bottom: 14px
+    }
+
+    .ctrl-label {
+      font-size: 10px;
+      color: var(--text3);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 6px
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 5px
+    }
+
+    .btn {
+      padding: 5px 10px;
+      font-size: 11px;
+      font-family: var(--sans);
+      border-radius: var(--r);
+      cursor: pointer;
+      font-weight: 500;
+      border: 1px solid var(--border2);
+      background: var(--bg2);
+      color: var(--text1);
+      transition: all .15s
+    }
+
+    .btn:hover {
+      background: var(--bg3)
+    }
+
+    .btn:active {
+      transform: scale(.97)
+    }
+
+    .btn.primary {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent)
+    }
+
+    .btn.primary:hover {
+      background: var(--accent2)
+    }
+
+    .btn.danger {
+      background: rgba(239, 68, 68, .1);
+      color: var(--red);
+      border-color: rgba(239, 68, 68, .3)
+    }
+
+    .btn.danger:hover {
+      background: rgba(239, 68, 68, .2)
+    }
+
+    .btn.amber-btn {
+      background: rgba(245, 158, 11, .1);
+      color: var(--amber);
+      border-color: rgba(245, 158, 11, .3)
+    }
+
+    select,
+    input[type=text] {
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      color: var(--text1);
+      font-family: var(--sans);
+      font-size: 11px;
+      padding: 5px 8px;
+      border-radius: var(--r);
+      width: 100%;
+      outline: none;
+      transition: border-color .15s
+    }
+
+    select:focus,
+    input[type=text]:focus {
+      border-color: var(--accent)
+    }
+
+    select option {
+      background: var(--bg2)
+    }
+
+    .range-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 3px;
+      background: var(--border2);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: 2px solid var(--bg1)
+    }
+
+    .range-val {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      min-width: 30px;
+      text-align: right
+    }
+
+    .class-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px
+    }
+
+    .class-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 7px;
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      background: var(--bg2);
+      cursor: pointer;
+      font-size: 11px;
+      transition: all .15s;
+      user-select: none
+    }
+
+    .class-toggle input {
+      display: none
+    }
+
+    .class-toggle.active {
+      border-color: currentColor;
+      background: var(--bg3)
+    }
+
+    .cls-pip {
+      width: 7px;
+      height: 7px;
+      border-radius: 2px;
+      flex-shrink: 0
+    }
+
+    /* Analytics */
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 12px
+    }
+
+    .stat-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--rl);
+      padding: 10px;
+      text-align: center
+    }
+
+    .stat-card .num {
+      font-family: var(--mono);
+      font-size: 26px;
+      font-weight: 500;
+      line-height: 1;
+      transition: color .3s
+    }
+
+    .stat-card .num.bump {
+      color: var(--accent)
+    }
+
+    .stat-card .lbl {
+      font-size: 9px;
+      color: var(--text3);
+      letter-spacing: .07em;
+      text-transform: uppercase;
+      margin-top: 4px
+    }
+
+    .obj-rows {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px
+    }
+
+    .obj-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 8px;
+      background: var(--bg2);
+      border-radius: var(--r);
+      border: 1px solid var(--border)
+    }
+
+    .obj-bar-wrap {
+      flex: 1;
+      height: 3px;
+      background: var(--border2);
+      border-radius: 2px;
+      overflow: hidden
+    }
+
+    .obj-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width .4s
+    }
+
+    .obj-count {
+      font-family: var(--mono);
+      font-size: 11px;
+      min-width: 20px;
+      text-align: right
+    }
+
+    .fps-display {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px;
+      background: var(--bg2);
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      margin-bottom: 10px
+    }
+
+    .fps-num {
+      font-family: var(--mono);
+      font-size: 20px;
+      font-weight: 500;
+      color: var(--accent)
+    }
+
+    .fps-label {
+      font-size: 9px;
+      color: var(--text3);
+      letter-spacing: .07em;
+      text-transform: uppercase
+    }
+
+    .fps-bar-wrap {
+      flex: 1;
+      height: 4px;
+      background: var(--border2);
+      border-radius: 2px;
+      overflow: hidden
+    }
+
+    .fps-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width .5s
+    }
+
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-family: var(--mono);
+      border: 1px solid var(--border);
+      color: var(--text3);
+      transition: all .3s
+    }
+
+    .chip.ok {
+      border-color: rgba(0, 212, 170, .3);
+      color: var(--accent)
+    }
+
+    .chip.err {
+      border-color: rgba(239, 68, 68, .3);
+      color: var(--red)
+    }
+
+    .system-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 12px
+    }
+
+    /* Activity */
+    .activity-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 2px
+    }
+
+    .act-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: var(--r);
+      border-left: 2px solid transparent;
+      font-size: 11px;
+      animation: slideIn .25s ease
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(-6px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateX(0)
+      }
+    }
+
+    .act-item.car {
+      border-left-color: #60a5fa
+    }
+
+    .act-item.truck {
+      border-left-color: var(--amber)
+    }
+
+    .act-item.bus {
+      border-left-color: var(--red)
+    }
+
+    .act-item.person {
+      border-left-color: var(--accent)
+    }
+
+    .act-item:hover {
+      background: var(--bg2)
+    }
+
+    .act-class {
+      font-weight: 500;
+      flex: 1
+    }
+
+    .act-cam {
+      font-size: 10px;
+      color: var(--text3);
+      font-family: var(--mono)
+    }
+
+    .act-time {
+      font-size: 10px;
+      color: var(--text3);
+      font-family: var(--mono);
+      white-space: nowrap
+    }
+
+    /* Log cards */
+    .log-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--bg2);
+      border-radius: var(--r);
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: border-color .15s
+    }
+
+    .log-card:hover {
+      border-color: var(--border2)
+    }
+
+    .log-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--r);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px
+    }
+
+    .log-icon.csv {
+      background: rgba(0, 212, 170, .1)
+    }
+
+    .log-icon.txt {
+      background: rgba(59, 130, 246, .1)
+    }
+
+    .log-info {
+      flex: 1
+    }
+
+    .log-name {
+      font-size: 11px;
+      font-weight: 500
+    }
+
+    .log-meta {
+      font-size: 10px;
+      color: var(--text3);
+      font-family: var(--mono);
+      margin-top: 2px
+    }
+
+    .dl-btn {
+      font-size: 10px;
+      font-family: var(--mono);
+      padding: 4px 9px;
+      border-radius: var(--r);
+      border: 1px solid var(--border2);
+      color: var(--accent);
+      background: rgba(0, 212, 170, .05);
+      cursor: pointer;
+      transition: all .15s
+    }
+
+    .dl-btn:hover {
+      background: rgba(0, 212, 170, .12)
+    }
+
+    /* Settings */
+    .set-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .set-row:last-child {
+      border-bottom: none
+    }
+
+    .set-label {
+      font-size: 11px;
+      color: var(--text2);
+      white-space: nowrap
+    }
+
+    /* Mode pill */
+    .mode-pill {
+      display: flex;
+      background: var(--bg2);
+      border: 1px solid var(--border2);
+      border-radius: 20px;
+      padding: 2px;
+      overflow: hidden
+    }
+
+    .mode-opt {
+      flex: 1;
+      text-align: center;
+      padding: 4px 8px;
+      font-size: 10px;
+      border-radius: 18px;
+      cursor: pointer;
+      color: var(--text2);
+      transition: all .2s;
+      letter-spacing: .03em;
+      user-select: none
+    }
+
+    .mode-opt.active {
+      background: var(--accent);
+      color: #000;
+      font-weight: 600
+    }
+
+    /* Source row */
+    .source-row {
+      display: flex;
+      gap: 5px;
+      margin-top: 5px;
+      align-items: center
+    }
+
+    .source-hint {
+      font-size: 10px;
+      color: var(--text3);
+      margin-top: 4px;
+      line-height: 1.4
+    }
+
+    /* Vehicle Intel */
+    .vi-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--rl);
+      padding: 8px 10px;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 6px;
+      animation: slideIn .25s ease
+    }
+
+    .vi-card-top {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 6px
+    }
+
+    .vi-track-id {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--text3);
+      background: var(--bg3);
+      padding: 1px 5px;
+      border-radius: 3px
+    }
+
+    .vi-type-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: rgba(0, 212, 170, .1);
+      color: var(--accent)
+    }
+
+    .vi-swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 2px;
+      border: 1px solid rgba(255, 255, 255, .15);
+      flex-shrink: 0
+    }
+
+    .vi-color-name {
+      font-size: 10px;
+      color: var(--text2)
+    }
+
+    .vi-rows {
+      display: grid;
+      grid-template-columns: 52px 1fr;
+      gap: 2px 8px
+    }
+
+    .vi-key {
+      font-size: 9px;
+      color: var(--text3);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      align-self: center
+    }
+
+    .vi-val {
+      font-size: 11px;
+      font-family: var(--mono);
+      color: var(--text1);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis
+    }
+
+    .vi-val.plate {
+      color: var(--amber);
+      font-weight: 600;
+      font-size: 12px;
+      letter-spacing: .08em;
+      background: rgba(245, 158, 11, .08);
+      padding: 1px 6px;
+      border-radius: 3px;
+      display: inline-block
+    }
+
+    .vi-val.dim {
+      color: var(--text3);
+      font-style: italic
+    }
+
+    .vi-conf-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 0 2px 0 0;
+      transition: width .5s
+    }
+
+    .vi-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text3);
+      gap: 8px;
+      text-align: center;
+      padding: 20px 0
+    }
+
+    .vi-empty p {
+      font-size: 11px;
+      font-family: var(--mono)
+    }
+
+    .vi-empty .sub {
+      font-size: 10px;
+      opacity: .6
+    }
+
+    /* Toast */
+    .toast-wrap {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      z-index: 999
+    }
+
+    .toast {
+      padding: 8px 14px;
+      border-radius: var(--r);
+      font-size: 11px;
+      font-family: var(--mono);
+      background: var(--bg3);
+      border: 1px solid var(--border2);
+      color: var(--text1);
+      animation: toastIn .2s ease;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, .5)
+    }
+
+    .toast.ok {
+      border-color: rgba(0, 212, 170, .4);
+      color: var(--accent)
+    }
+
+    .toast.err {
+      border-color: rgba(239, 68, 68, .4);
+      color: var(--red)
+    }
+
+    @keyframes toastIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px)
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0)
+      }
+    }
+
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 10px 0
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <!-- ══ Topbar ══ -->
+    <header class="topbar">
+      <div class="topbar-logo">MCOT<span> // v3.0</span></div>
+      <div class="topbar-divider"></div>
+      <div class="topbar-stat"><span class="label">Objects</span><span class="val" id="hd-objects">—</span></div>
+      <div class="topbar-stat"><span class="label">Traffic</span><span class="val" id="hd-traffic">—</span></div>
+      <div class="topbar-stat"><span class="label">Avg FPS</span><span class="val" id="hd-fps">—</span></div>
+      <div class="topbar-stat"><span class="label">Cameras</span><span class="val" id="hd-cams">—</span></div>
+      <div class="topbar-right">
+        <div class="status-badge" id="sys-badge"><span class="status-dot"></span><span id="sys-msg">Connecting…</span>
+        </div>
+        <div class="ws-badge" id="ws-badge">WS: disconnected</div>
+      </div>
+    </header>
+
+    <!-- ══ Main grid — explicit grid-column + grid-row on every panel ══ -->
+    <div class="main">
+
+      <!-- Col 1, rows 1-2: Control Panel -->
+      <div class="panel" style="grid-column:1;grid-row:1/3;border-right:1px solid var(--border)">
+        <div class="panel-head">
+          <div class="panel-title"><span class="dot"></span>Control Panel</div>
+          <div id="engine-chip" class="chip">ENGINE OFF</div>
+        </div>
+        <div class="panel-body">
+
+          <div class="ctrl-group">
+            <div class="ctrl-label">Engine</div>
+            <div class="btn-row">
+              <button class="btn primary" onclick="setYolo(true)">▶ Start</button>
+              <button class="btn danger" onclick="setYolo(false)">■ Stop</button>
+            </div>
+          </div>
+
+          <div class="ctrl-group">
+            <div class="ctrl-label">Mode</div>
+            <div class="mode-pill">
+              <div class="mode-opt active" id="mode-obj" onclick="setMode('object_tracking')">Objects</div>
+              <div class="mode-opt" id="mode-traffic" onclick="setMode('traffic_counting')">Traffic</div>
+            </div>
+          </div>
+
+          <!-- Camera 1 source -->
+          <div class="ctrl-group">
+            <div class="ctrl-label">Source — Camera 1</div>
+            <select id="src-sel-0" onchange="onSourceSelect(0, this.value)">
+              <option value="0">Webcam (device 0)</option>
+              <option value="1">Webcam (device 1)</option>
+              <option value="__rtsp__">IP Camera (RTSP)…</option>
+              <option value="__file__">📁 Browse video file…</option>
+            </select>
+            <div id="rtsp-wrap-0" style="display:none;margin-top:5px">
+              <input type="text" id="rtsp-0" placeholder="rtsp://192.168.x.x/stream">
+              <button class="btn primary" style="margin-top:4px;width:100%"
+                onclick="applySource(0, document.getElementById('rtsp-0').value)">Apply</button>
+            </div>
+            <div id="file-wrap-0" style="display:none;margin-top:5px">
+              <div class="source-row">
+                <input type="text" id="file-path-0" placeholder="e.g. myvideo.mp4 or C:/path/video.mp4">
+                <button class="btn" onclick="document.getElementById('file-pick-0').click()">Browse</button>
+                <input type="file" id="file-pick-0" accept="video/*,.mp4,.avi,.mov,.mkv" style="display:none"
+                  onchange="onFilePicked(0,this)">
+              </div>
+              <button class="btn primary" style="margin-top:4px;width:100%"
+                onclick="applySource(0, document.getElementById('file-path-0').value)">▶ Apply & Play</button>
+              <div class="source-hint">💡 Place your video file inside the project folder for easiest access, or paste
+                the full path above.</div>
+            </div>
+          </div>
+
+          <!-- Camera 2 source -->
+          <div class="ctrl-group">
+            <div class="ctrl-label">Source — Camera 2</div>
+            <select id="src-sel-1" onchange="onSourceSelect(1, this.value)">
+              <option value="1">Webcam (device 1)</option>
+              <option value="0">Webcam (device 0)</option>
+              <option value="__rtsp__">IP Camera (RTSP)…</option>
+              <option value="__file__">📁 Browse video file…</option>
+            </select>
+            <div id="rtsp-wrap-1" style="display:none;margin-top:5px">
+              <input type="text" id="rtsp-1" placeholder="rtsp://192.168.x.x/stream">
+              <button class="btn primary" style="margin-top:4px;width:100%"
+                onclick="applySource(1, document.getElementById('rtsp-1').value)">Apply</button>
+            </div>
+            <div id="file-wrap-1" style="display:none;margin-top:5px">
+              <div class="source-row">
+                <input type="text" id="file-path-1" placeholder="e.g. myvideo.mp4 or C:/path/video.mp4">
+                <button class="btn" onclick="document.getElementById('file-pick-1').click()">Browse</button>
+                <input type="file" id="file-pick-1" accept="video/*,.mp4,.avi,.mov,.mkv" style="display:none"
+                  onchange="onFilePicked(1,this)">
+              </div>
+              <button class="btn primary" style="margin-top:4px;width:100%"
+                onclick="applySource(1, document.getElementById('file-path-1').value)">▶ Apply & Play</button>
+              <div class="source-hint">💡 Place your video file inside the project folder for easiest access, or paste
+                the full path above.</div>
+            </div>
+          </div>
+
+          <!-- Classes -->
+          <div class="ctrl-group">
+            <div class="ctrl-label">Classes to track</div>
+            <div class="class-grid">
+              <label class="class-toggle active" id="cls-car" style="color:#60a5fa"><input type="checkbox" checked
+                  onchange="toggleClass('car',this.checked)"><span class="cls-pip"
+                  style="background:#60a5fa"></span>Car</label>
+              <label class="class-toggle active" id="cls-truck" style="color:var(--amber)"><input type="checkbox"
+                  checked onchange="toggleClass('truck',this.checked)"><span class="cls-pip"
+                  style="background:var(--amber)"></span>Truck</label>
+              <label class="class-toggle active" id="cls-bus" style="color:var(--red)"><input type="checkbox" checked
+                  onchange="toggleClass('bus',this.checked)"><span class="cls-pip"
+                  style="background:var(--red)"></span>Bus</label>
+              <label class="class-toggle active" id="cls-person" style="color:var(--accent)"><input type="checkbox"
+                  checked onchange="toggleClass('person',this.checked)"><span class="cls-pip"
+                  style="background:var(--accent)"></span>Person</label>
+            </div>
+          </div>
+
+          <!-- Confidence -->
+          <div class="ctrl-group">
+            <div class="ctrl-label">Confidence threshold</div>
+            <div class="range-wrap">
+              <input type="range" min="0" max="100" value="50"
+                oninput="document.getElementById('conf-val').textContent=(this.value/100).toFixed(2)"
+                onchange="setConfidence(this.value/100)">
+              <span class="range-val" id="conf-val">0.50</span>
+            </div>
+          </div>
+
+          <!-- Counting line -->
+          <div class="ctrl-group">
+            <div class="ctrl-label">Counting line position</div>
+            <div class="range-wrap">
+              <input type="range" min="0" max="100" value="50" oninput="previewLine(this.value/100)"
+                onchange="setCountingLine(this.value/100)">
+              <span class="range-val" id="line-val">0.50</span>
+            </div>
+          </div>
+
+          <hr>
+
+          <!-- Logs -->
+          <div class="ctrl-group">
+            <div class="ctrl-label">Log files</div>
+            <div class="log-card" onclick="downloadLog('traffic')">
+              <div class="log-icon csv">📊</div>
+              <div class="log-info">
+                <div class="log-name">Traffic Log</div>
+                <div class="log-meta" id="traffic-log-ts">—</div>
+              </div>
+              <button class="dl-btn">↓ CSV</button>
+            </div>
+            <div class="log-card" onclick="downloadLog('objects')">
+              <div class="log-icon txt">📄</div>
+              <div class="log-info">
+                <div class="log-name">Object Log</div>
+                <div class="log-meta" id="objects-log-ts">—</div>
+              </div>
+              <button class="dl-btn">↓ TXT</button>
+            </div>
+          </div>
+
+          <hr>
+          <button class="btn primary" style="width:100%" onclick="refreshConfig()">↺ Refresh config</button>
+        </div>
+      </div>
+
+      <!-- Col 2, row 1: Camera 1 -->
+      <div class="cam-panel" style="grid-column:2;grid-row:1" id="cam-panel-0">
+        <img class="cam-feed" id="cam-feed-0" src="" style="display:none">
+        <div class="cam-overlay"></div>
+        <div class="cam-placeholder" id="cam-ph-0">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="2" y="6" width="20" height="14" rx="2" />
+            <circle cx="12" cy="13" r="3" />
+            <path d="M8 6V4h8v2" />
+          </svg>
+          <p>Waiting for camera 1…</p>
+        </div>
+        <div class="cam-label-top">
+          <div class="cam-name"><span class="rec-dot"></span>Camera 1</div>
+          <div class="cam-fps-badge" id="fps-badge-0">— FPS</div>
+        </div>
+        <div class="cam-label-bottom">
+          <div class="cam-frame-count" id="frame-count-0">frame —</div>
+          <div class="cam-counts-row" id="cam-counts-0"></div>
+        </div>
+        <!-- Counting line — inside this camera panel only -->
+        <div class="cam-line" id="cam-line-0" style="top:50%"></div>
+      </div>
+
+      <!-- Col 3, row 1: Camera 2 -->
+      <div class="cam-panel" style="grid-column:3;grid-row:1" id="cam-panel-1">
+        <img class="cam-feed" id="cam-feed-1" src="" style="display:none">
+        <div class="cam-overlay"></div>
+        <div class="cam-placeholder" id="cam-ph-1">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+            <rect x="2" y="6" width="20" height="14" rx="2" />
+            <circle cx="12" cy="13" r="3" />
+            <path d="M8 6V4h8v2" />
+          </svg>
+          <p>Waiting for camera 2…</p>
+        </div>
+        <div class="cam-label-top">
+          <div class="cam-name"><span class="rec-dot"></span>Camera 2</div>
+          <div class="cam-fps-badge" id="fps-badge-1">— FPS</div>
+        </div>
+        <div class="cam-label-bottom">
+          <div class="cam-frame-count" id="frame-count-1">frame —</div>
+          <div class="cam-counts-row" id="cam-counts-1"></div>
+        </div>
+        <!-- Counting line — inside this camera panel only -->
+        <div class="cam-line" id="cam-line-1" style="top:50%"></div>
+      </div>
+
+      <!-- Col 4, rows 1-2: Activity Feed -->
+      <div class="panel" style="grid-column:4;grid-row:1/3;border-left:1px solid var(--border)">
+        <div class="panel-head">
+          <div class="panel-title"><span class="dot"></span>Recent Activity</div>
+          <div style="font-size:10px;color:var(--text3);font-family:var(--mono)" id="event-count">0 events</div>
+        </div>
+        <div class="panel-body">
+          <div class="activity-feed" id="activity-feed"></div>
+        </div>
+      </div>
+
+      <!-- Col 2, row 2: Analytics -->
+      <div class="panel" style="grid-column:2;grid-row:2">
+        <div class="panel-head">
+          <div class="panel-title"><span class="dot"></span>Analytics Dashboard</div>
+          <div id="mode-label" style="font-size:10px;color:var(--text3);font-family:var(--mono)">OBJECT TRACKING</div>
+        </div>
+        <div class="panel-body">
+          <div class="stat-grid">
+            <div class="stat-card">
+              <div class="num" id="stat-total-obj">0</div>
+              <div class="lbl">Total Objects</div>
+            </div>
+            <div class="stat-card">
+              <div class="num" id="stat-total-traffic">0</div>
+              <div class="lbl">Traffic Count</div>
+            </div>
+          </div>
+          <div class="ctrl-label">Objects by class</div>
+          <div class="obj-rows">
+            <div class="obj-row"><span style="font-size:11px;color:#60a5fa;flex:1">🚗 Car</span>
+              <div class="obj-bar-wrap">
+                <div class="obj-bar" id="bar-car" style="background:#60a5fa;width:0%"></div>
+              </div><span class="obj-count" id="cnt-car">0</span>
+            </div>
+            <div class="obj-row"><span style="font-size:11px;color:var(--amber);flex:1">🚛 Truck</span>
+              <div class="obj-bar-wrap">
+                <div class="obj-bar" id="bar-truck" style="background:var(--amber);width:0%"></div>
+              </div><span class="obj-count" id="cnt-truck">0</span>
+            </div>
+            <div class="obj-row"><span style="font-size:11px;color:var(--red);flex:1">🚌 Bus</span>
+              <div class="obj-bar-wrap">
+                <div class="obj-bar" id="bar-bus" style="background:var(--red);width:0%"></div>
+              </div><span class="obj-count" id="cnt-bus">0</span>
+            </div>
+            <div class="obj-row"><span style="font-size:11px;color:var(--accent);flex:1">🚶 Person</span>
+              <div class="obj-bar-wrap">
+                <div class="obj-bar" id="bar-person" style="background:var(--accent);width:0%"></div>
+              </div><span class="obj-count" id="cnt-person">0</span>
+            </div>
+          </div>
+          <div class="fps-display">
+            <div>
+              <div class="fps-num" id="fps-main">—</div>
+              <div class="fps-label">Avg FPS</div>
+            </div>
+            <div class="fps-bar-wrap">
+              <div class="fps-bar" id="fps-bar" style="width:0%"></div>
+            </div>
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">/30</div>
+          </div>
+          <div class="system-chips" id="sys-chips">
+            <div class="chip" id="chip-yolo">YOLO —</div>
+            <div class="chip" id="chip-db">DB —</div>
+            <div class="chip" id="chip-cam0">CAM 0 —</div>
+            <div class="chip" id="chip-cam1">CAM 1 —</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Col 3, row 2: Vehicle Intelligence -->
+      <div class="panel" style="grid-column:3;grid-row:2" id="vehicle-intel-panel">
+        <div class="panel-head">
+          <div class="panel-title"><span class="dot"></span>Vehicle Intelligence</div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span id="intel-count" style="font-size:10px;color:var(--text3);font-family:var(--mono)">0 vehicles</span>
+            <div id="intel-chip" class="chip">STANDBY</div>
+          </div>
+        </div>
+        <div class="panel-body" id="intel-body">
+          <div class="vi-empty" id="vi-empty">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"
+              opacity=".4">
+              <rect x="1" y="3" width="15" height="13" rx="2" />
+              <path d="M16 8h4l3 4v3h-7V8z" />
+              <circle cx="5.5" cy="18.5" r="2.5" />
+              <circle cx="18.5" cy="18.5" r="2.5" />
+            </svg>
+            <p>Waiting for vehicles…</p>
+            <p class="sub">Runs every 15 frames on cars, trucks &amp; buses</p>
+          </div>
+          <div id="vi-list"></div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /app -->
+
+  <div class="toast-wrap" id="toast-wrap"></div>
+
+  <script>
+    /* ════ Config ════ */
+    const API = 'http://localhost:8000';
+    const WS_URL = 'ws://localhost:8000/ws';
+
+    /* ════ State ════ */
+    let ws = null, wsAlive = false;
+    let activeClasses = new Set(['car', 'truck', 'bus', 'person']);
+    let totalEvents = 0;
+
+    const COLOR_SWATCHES = {
+      Red: '#ef4444', Orange: '#f97316', Yellow: '#eab308', Green: '#22c55e',
+      Blue: '#3b82f6', Purple: '#a855f7', White: '#f1f5f9', Silver: '#94a3b8',
+      Black: '#334155', Gray: '#64748b', Brown: '#92400e', Unknown: '#475569',
+    };
+
+    /* ════ WebSocket ════ */
+    function connect() {
+      ws = new WebSocket(WS_URL);
+      ws.onopen = () => {
+        wsAlive = true;
+        el('ws-badge').textContent = 'WS: connected';
+        el('ws-badge').classList.add('connected');
+        setSysBadge(true, 'All systems operational');
+        toast('WebSocket connected', 'ok');
+      };
+      ws.onmessage = e => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'update') {
+            updateAnalytics(msg.analytics);
+            updateStatus(msg.status);
+            updateFrames(msg.frames || {});
+          }
+        } catch { }
+      };
+      ws.onclose = () => {
+        wsAlive = false;
+        el('ws-badge').textContent = 'WS: reconnecting…';
+        el('ws-badge').classList.remove('connected');
+        setSysBadge(false, 'Disconnected — reconnecting…');
+        setTimeout(connect, 3000);
+      };
+    }
+
+    /* ════ Analytics update ════ */
+    function updateAnalytics(data) {
+      if (!data) return;
+      const totals = data.totals || {};
+      const sys = data.system || {};
+      const byCls = totals.by_class || {};
+
+      setTxt('hd-objects', totals.objects ?? '—');
+      setTxt('hd-traffic', totals.traffic ?? '—');
+      setTxt('hd-fps', sys.avg_fps != null ? sys.avg_fps.toFixed(1) : '—');
+      setTxt('hd-cams', sys.active_cameras ?? '—');
+
+      bumpNum('stat-total-obj', totals.objects ?? 0);
+      bumpNum('stat-total-traffic', totals.traffic ?? 0);
+
+      const fps = sys.avg_fps ?? 0;
+      setTxt('fps-main', fps.toFixed(1));
+      el('fps-bar').style.width = Math.min(100, fps / 30 * 100).toFixed(0) + '%';
+
+      const classes = ['car', 'truck', 'bus', 'person'];
+      const vals = classes.map(c => byCls[c] ?? 0);
+      const maxV = Math.max(1, ...vals);
+      classes.forEach((c, i) => {
+        setTxt('cnt-' + c, vals[i]);
+        const b = el('bar-' + c);
+        if (b) b.style.width = (vals[i] / maxV * 100).toFixed(0) + '%';
+      });
+
+      // Per-camera updates
+      const cameras = data.cameras || {};
+      Object.entries(cameras).forEach(([cid, cam]) => {
+        const id = parseInt(cid);
+        setTxt('fps-badge-' + id, (cam.fps ?? 0).toFixed(1) + ' FPS');
+        setTxt('frame-count-' + id, 'frame ' + (cam.frame_count ?? '—'));
+        const chipsEl = el('cam-counts-' + id);
+        if (chipsEl) {
+          chipsEl.innerHTML = Object.entries(cam.object_counts || {})
+            .filter(([, v]) => v > 0)
+            .map(([c, v]) => `<span class="cam-count-chip ${c}">${c[0].toUpperCase()} ${v}</span>`)
+            .join('');
+        }
+        const ph = el('cam-ph-' + id);
+        if (ph) ph.style.display = cam.is_connected ? 'none' : 'flex';
+      });
+
+      // Vehicle intel — aggregate from all cameras
+      const allIntel = [];
+      Object.values(cameras).forEach(cam => {
+        if (cam.vehicle_intel && cam.vehicle_intel.length > 0)
+          allIntel.push(...cam.vehicle_intel);
+      });
+      renderVehicleIntel(allIntel);
+
+      // Events
+      if (data.recent_events) data.recent_events.forEach(addEvent);
+    }
+
+    /* ════ Status update ════ */
+    function updateStatus(status) {
+      if (!status || !wsAlive) return;
+      setSysBadge(status.all_ok, status.system_message || '');
+
+      el('chip-yolo').className = 'chip ok';
+      el('chip-yolo').textContent = 'YOLO ON';
+      el('chip-db').className = 'chip ok';
+      el('chip-db').textContent = 'DB OK';
+
+      Object.entries(status.cameras || {}).forEach(([cid, cam]) => {
+        const c = el('chip-cam' + cid);
+        if (!c) return;
+        const ok = cam.status === 'active';
+        c.className = 'chip ' + (ok ? 'ok' : 'err');
+        c.textContent = 'CAM ' + cid + ' ' + (ok ? 'OK' : cam.status.toUpperCase());
+      });
+
+      el('traffic-log-ts').textContent = new Date().toLocaleTimeString();
+      el('objects-log-ts').textContent = new Date().toLocaleTimeString();
+    }
+
+    /* ════ Frames update ════ */
+    function updateFrames(frames) {
+      Object.entries(frames).forEach(([cid, b64]) => {
+        const img = el('cam-feed-' + cid);
+        const ph = el('cam-ph-' + cid);
+        if (img && b64) {
+          img.src = 'data:image/jpeg;base64,' + b64;
+          img.style.display = 'block';
+          if (ph) ph.style.display = 'none';
+        }
+      });
+    }
+
+    /* ════ Vehicle Intel rendering ════ */
+    const seenIntel = new Map(); // track_id -> last rendered hash
+
+    function renderVehicleIntel(intelList) {
+      const empty = el('vi-empty');
+      const list = el('vi-list');
+      const countE = el('intel-count');
+      const chip = el('intel-chip');
+      if (!list) return;
+
+      if (!intelList || intelList.length === 0) {
+        empty.style.display = 'flex';
+        list.innerHTML = '';
+        countE.textContent = '0 vehicles';
+        chip.className = 'chip';
+        chip.textContent = 'STANDBY';
+        return;
+      }
+
+      empty.style.display = 'none';
+      countE.textContent = intelList.length + ' vehicle' + (intelList.length !== 1 ? 's' : '');
+      chip.className = 'chip ok';
+      chip.textContent = 'ACTIVE';
+
+      // Remove cards for tracks that are gone
+      const activeIds = new Set(intelList.map(v => v.track_id));
+      list.querySelectorAll('.vi-card').forEach(card => {
+        if (!activeIds.has(parseInt(card.dataset.tid))) card.remove();
+      });
+
+      // Add/update cards
+      intelList.slice(0, 8).forEach(v => {
+        const sw = COLOR_SWATCHES[v.color] || COLOR_SWATCHES['Unknown'];
+        const typeStr = v.vehicle_type || 'Analyzing…';
+        const confPct = Math.round((v.type_confidence || 0) * 100);
+        const plateHtml = v.plate_text
+          ? `<span class="vi-val plate">${v.plate_text}</span>`
+          : `<span class="vi-val dim">—</span>`;
+
+        let card = list.querySelector(`[data-tid="${v.track_id}"]`);
+        if (!card) {
+          card = document.createElement('div');
+          card.className = 'vi-card';
+          card.dataset.tid = v.track_id;
+          list.appendChild(card);
+        }
+        card.innerHTML = `
+      <div class="vi-card-top">
+        <span class="vi-track-id">#${v.track_id}</span>
+        <span class="vi-type-badge">🚗</span>
+        <div class="vi-swatch" style="background:${sw}" title="${v.color}"></div>
+        <span class="vi-color-name">${v.color}</span>
+      </div>
+      <div class="vi-rows">
+        <span class="vi-key">Type</span>
+        <span class="vi-val" title="${typeStr}">${typeStr}</span>
+        <span class="vi-key">Plate</span>
+        ${plateHtml}
+        <span class="vi-key">Conf</span>
+        <span class="vi-val">${confPct > 0 ? confPct + '%' : '—'}</span>
+      </div>
+      <div class="vi-conf-bar" style="width:${confPct}%"></div>`;
+      });
+    }
+
+    /* ════ Activity feed ════ */
+    const seenEvents = new Set();
+    function addEvent(ev) {
+      // Build a unique key — use timestamp + track_id so same vehicle
+      // doesn't appear twice but different crossings at different times do
+      const key = (ev.track_id || 0) + '_' + (ev.timestamp || '').substr(0, 19);
+      if (seenEvents.has(key)) return;
+      seenEvents.add(key);
+      if (seenEvents.size > 300) seenEvents.clear();
+
+      totalEvents++;
+      setTxt('event-count', totalEvents + ' events');
+
+      const feed = el('activity-feed');
+      const cls = ev.class_name || 'car';
+      const time = ev.timestamp
+        ? ev.timestamp.length > 10
+          ? ev.timestamp.substr(11, 8)           // ISO string → HH:MM:SS
+          : ev.timestamp
+        : new Date().toLocaleTimeString();
+
+      // Label: traffic mode shows direction arrow, object mode shows "detected"
+      const isTraffic = ev.direction && ev.direction !== '';
+      const arrow = ev.direction === 'up' ? ' ↑' : ev.direction === 'down' ? ' ↓' : '';
+      const action = isTraffic
+        ? `${cap(cls)} crossed${arrow}`
+        : `${cap(cls)} detected`;
+
+      const item = document.createElement('div');
+      item.className = 'act-item ' + cls;
+      item.innerHTML =
+        `<span class="act-class">${action}</span>` +
+        `<span class="act-cam">cam ${ev.camera_id ?? '—'}</span>` +
+        `<span class="act-time">${time}</span>`;
+      feed.insertBefore(item, feed.firstChild);
+      if (feed.children.length > 30) feed.removeChild(feed.lastChild);
+    }
+
+    /* ════ REST API calls ════ */
+    async function api(path, body) {
+      const opts = body
+        ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+        : { method: 'GET' };
+      try {
+        const r = await fetch(API + path, opts);
+        if (!r.ok) throw new Error(r.statusText);
+        return await r.json();
+      } catch (e) {
+        toast('API: ' + e.message, 'err');
+        return null;
+      }
+    }
+
+    async function setYolo(enabled) {
+      const r = await api('/api/set_yolo_mode', { enabled });
+      if (r) {
+        const c = el('engine-chip');
+        c.textContent = enabled ? 'ENGINE ON' : 'ENGINE OFF';
+        c.className = 'chip ' + (enabled ? 'ok' : '');
+        toast('YOLO ' + (enabled ? 'started' : 'stopped'), 'ok');
+      }
+    }
+
+    async function setMode(mode) {
+      const r = await api('/api/set_mode', { mode });
+      if (!r) return;
+      el('mode-obj').classList.toggle('active', mode === 'object_tracking');
+      el('mode-traffic').classList.toggle('active', mode === 'traffic_counting');
+      el('mode-label').textContent = mode.replace('_', ' ').toUpperCase();
+
+      // Show green counting line ONLY in traffic mode
+      // Each camera has its own cam-line div — both toggle together
+      const showLine = mode === 'traffic_counting';
+      [0, 1].forEach(id => {
+        const line = el('cam-line-' + id);
+        if (line) line.style.display = showLine ? 'block' : 'none';
+      });
+
+      toast('Mode → ' + (mode === 'traffic_counting' ? 'Traffic Counting' : 'Object Tracking'), 'ok');
+    }
+
+    async function setConfidence(val) {
+      const r = await api('/api/set_confidence', { threshold: parseFloat(val.toFixed(2)) });
+      if (r) toast('Confidence → ' + val.toFixed(2), 'ok');
+    }
+
+    function previewLine(pos) {
+      el('line-val').textContent = pos.toFixed(2);
+      [0, 1].forEach(id => {
+        const line = el('cam-line-' + id);
+        if (line) line.style.top = (pos * 100).toFixed(0) + '%';
+      });
+    }
+
+    async function setCountingLine(pos) {
+      el('line-val').textContent = pos.toFixed(2);
+      [0, 1].forEach(id => {
+        const line = el('cam-line-' + id);
+        if (line) line.style.top = (pos * 100).toFixed(0) + '%';
+      });
+      const r = await api('/api/set_counting_line', { position: pos });
+      if (r) toast('Counting line → ' + pos.toFixed(2), 'ok');
+    }
+
+    async function setClasses() {
+      const cls = [...activeClasses];
+      const r = await api('/api/set_classes', { classes: cls });
+      if (r) toast('Classes: ' + cls.join(', '), 'ok');
+    }
+
+    function toggleClass(cls, checked) {
+      if (checked) activeClasses.add(cls); else activeClasses.delete(cls);
+      const e = el('cls-' + cls);
+      if (e) e.classList.toggle('active', checked);
+      setClasses();
+    }
+
+    async function refreshConfig() {
+      const data = await api('/api/config');
+      if (!data) return;
+      const det = data.detection || {};
+      if (det.confidence_threshold != null) {
+        document.querySelector('input[type=range]').value = det.confidence_threshold * 100;
+        setTxt('conf-val', det.confidence_threshold.toFixed(2));
+      }
+      toast('Config refreshed', 'ok');
+    }
+
+    function downloadLog(type) {
+      const a = document.createElement('a');
+      a.href = API + (type === 'traffic' ? '/api/logs/traffic.csv' : '/api/logs/objects.txt');
+      a.download = type === 'traffic' ? 'traffic_log.csv' : 'object_log.txt';
+      a.click();
+      toast('Downloading ' + type + ' log…', 'ok');
+    }
+
+    /* ════ Camera source controls ════ */
+    function onSourceSelect(camId, val) {
+      el('rtsp-wrap-' + camId).style.display = val === '__rtsp__' ? 'block' : 'none';
+      el('file-wrap-' + camId).style.display = val === '__file__' ? 'block' : 'none';
+      if (val !== '__rtsp__' && val !== '__file__') {
+        applySource(camId, val);
+      }
+    }
+
+    function onFilePicked(camId, input) {
+      if (!input.files || !input.files[0]) return;
+      const fname = input.files[0].name;
+      el('file-path-' + camId).value = fname;
+      // Don't auto-apply — user clicks "▶ Apply & Play" so they can edit path if needed
+    }
+
+    async function applySource(camId, source) {
+      if (!source || source.trim() === '') {
+        toast('Please enter a valid source', 'err');
+        return;
+      }
+      toast('Switching camera ' + camId + ' to: ' + source + '…', '');
+      const r = await api('/api/set_camera_source/' + camId, { source: source.trim() });
+      if (r && r.success) {
+        toast('Camera ' + camId + ' → ' + source, 'ok');
+      }
+    }
+
+    /* ════ Helpers ════ */
+    function el(id) { return document.getElementById(id) }
+    function setTxt(id, v) { const e = el(id); if (e) e.textContent = v }
+    function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1) }
+    function setSysBadge(ok, msg) {
+      const b = el('sys-badge');
+      b.className = 'status-badge ' + (ok ? 'ok' : 'error');
+      b.innerHTML = `<span class="status-dot ${ok ? 'pulse' : ''}"></span><span>${msg}</span>`;
+    }
+
+    function bumpNum(id, val) {
+      const e = el(id);
+      if (!e) return;
+      const prev = parseInt(e.textContent) || 0;
+      e.textContent = val;
+      if (val > prev) {
+        e.classList.add('bump');
+        setTimeout(() => e.classList.remove('bump'), 600);
+      }
+    }
+
+    let _toastCount = 0;
+    function toast(msg, type = '') {
+      const wrap = el('toast-wrap');
+      const div = document.createElement('div');
+      div.className = 'toast ' + type;
+      div.textContent = msg;
+      wrap.appendChild(div);
+      setTimeout(() => { div.style.cssText = 'opacity:0;transition:opacity .3s' }, 2200);
+      setTimeout(() => div.remove(), 2600);
+    }
+
+    /* ════ Demo mode (when backend is not running) ════ */
+    function startDemo() {
+      toast('Backend not connected — running demo mode', '');
+      setSysBadge(true, 'Demo mode — start backend to connect');
+
+      const DEMO_INTEL = [
+        { track_id: 1, color: 'White', vehicle_type: 'Sedan / Hatchback', type_confidence: .88, plate_text: 'ABC1234', plate_confidence: .82 },
+        { track_id: 2, color: 'Black', vehicle_type: 'SUV / Crossover', type_confidence: .91, plate_text: 'XYZ9876', plate_confidence: .76 },
+        { track_id: 3, color: 'Silver', vehicle_type: 'Truck / Van', type_confidence: .79, plate_text: '', plate_confidence: 0 },
+        { track_id: 4, color: 'Blue', vehicle_type: 'Sports Car', type_confidence: .85, plate_text: 'LMN5543', plate_confidence: .69 },
+      ];
+      const CLS = ['car', 'truck', 'bus', 'person'];
+      let objs = 0, traffic = 0;
+
+      setInterval(() => {
+        objs += Math.floor(Math.random() * 3);
+        traffic += Math.floor(Math.random() * 2);
+        const fps = (20 + Math.random() * 10).toFixed(1);
+        setTxt('hd-objects', objs); setTxt('hd-traffic', traffic); setTxt('hd-fps', fps); setTxt('hd-cams', '2');
+        bumpNum('stat-total-obj', objs); bumpNum('stat-total-traffic', traffic);
+        setTxt('fps-main', fps);
+        el('fps-bar').style.width = Math.min(100, parseFloat(fps) / 30 * 100) + '%';
+        const byCls = { car: Math.floor(objs * .5), truck: Math.floor(objs * .15), bus: Math.floor(objs * .1), person: Math.floor(objs * .25) };
+        const mx = Math.max(1, ...Object.values(byCls));
+        CLS.forEach(c => { setTxt('cnt-' + c, byCls[c]); const b = el('bar-' + c); if (b) b.style.width = (byCls[c] / mx * 100) + '%' });
+        [0, 1].forEach(id => { setTxt('fps-badge-' + id, (18 + Math.random() * 10).toFixed(1) + ' FPS'); setTxt('frame-count-' + id, 'frame ' + Math.floor(Math.random() * 9999)) });
+        ['yolo', 'db'].forEach(k => { const c = el('chip-' + k); if (c) { c.className = 'chip ok'; c.textContent = k.toUpperCase() + ' OK' } });
+        [0, 1].forEach(id => { const c = el('chip-cam' + id); if (c) { c.className = 'chip ok'; c.textContent = 'CAM ' + id + ' OK' } });
+        if (Math.random() > .5) {
+          const cls = CLS[Math.floor(Math.random() * CLS.length)];
+          addEvent({ track_id: Math.floor(Math.random() * 999), timestamp: new Date().toISOString(), class_name: cls, camera_id: Math.floor(Math.random() * 2) });
+        }
+        // Shuffle demo intel slightly
+        const shuffled = DEMO_INTEL.map(v => ({ ...v, type_confidence: Math.max(.5, v.type_confidence + (Math.random() - .5) * .05) }));
+        renderVehicleIntel(shuffled);
+      }, 1500);
+    }
+
+    /* ════ Init ════ */
+    document.addEventListener('DOMContentLoaded', () => {
+      // Counting lines hidden until traffic mode selected
+      [0, 1].forEach(id => { const l = el('cam-line-' + id); if (l) l.style.display = 'none'; });
+
+      const testWs = new WebSocket(WS_URL);
+      testWs.onopen = () => { testWs.close(); connect(); };
+      testWs.onerror = () => { startDemo(); };
+    });
+  </script>
+</body>
+
+</html>

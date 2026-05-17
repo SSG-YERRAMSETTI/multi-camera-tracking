@@ -1,0 +1,42 @@
+# ─── Python ───────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+env/
+.venv/
+
+# ─── Environment variables ────────────────────────
+.env
+.env.local
+config.local.json
+
+# ─── Model weights (large files — download separately) ─
+*.pt
+*.onnx
+*.engine
+models/*.pt
+models/*.onnx
+
+# ─── Runtime / generated files ────────────────────
+tracking.db
+logs/counts/*.csv
+logs/objects/*.txt
+backend/uploads/
+
+# ─── VS Code (keep launch configs, ignore personal) ─
+.vscode/settings.json.bak
+
+# ─── OS ───────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Build ────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+
+# ─── Test artifacts ───────────────────────────────
+.pytest_cache/
+*.log

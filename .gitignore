@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+env/
+.env
+
+# VS Code (keep .vscode for team settings)
+.vscode/settings.json.bak
+
+# Database (runtime file)
+tracking.db
+
+# Model weights (too large for git)
+models/*.pt
+models/*.onnx
+models/*.engine
+
+# Logs (runtime data)
+logs/counts/*.csv
+logs/objects/*.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config override (keep default config.json, ignore personal overrides)
+config.local.json

@@ -1,0 +1,50 @@
+{
+  "mode": "object_tracking",
+  "cameras": [
+    {
+      "camera_id": 0,
+      "source": "1",
+      "zmq_port": 5555,
+      "enabled": true,
+      "width": 640,
+      "height": 480,
+      "fps_limit": 30
+    },
+    {
+      "camera_id": 1,
+      "source": "License Plate Detection Test.publer.com.mp4",
+      "zmq_port": 5566,
+      "enabled": true,
+      "width": 640,
+      "height": 480,
+      "fps_limit": 30
+    }
+  ],
+  "detection": {
+    "model_path": "yolov8n.pt",
+    "confidence_threshold": 0.22,
+    "iou_threshold": 0.45,
+    "classes_to_track": [
+      "truck",
+      "bus",
+      "car"
+    ],
+    "device": "cpu",
+    "half_precision": false,
+    "yolo_enabled": false
+  },
+  "tracking": {
+    "enabled": true,
+    "max_age": 30,
+    "min_hits": 3,
+    "iou_threshold": 0.3,
+    "embedder": "mobilenet"
+  },
+  "traffic": {
+    "counting_line_position": 0.5,
+    "count_direction": "both",
+    "write_interval_minutes": 5
+  },
+  "log_dir": "logs",
+  "db_path": "tracking.db"
+}

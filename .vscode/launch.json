@@ -1,0 +1,70 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "▶ Run Server (app.py)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "backend.app:app",
+        "--host", "0.0.0.0",
+        "--port", "8000",
+        "--reload"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "📷 Camera Client 0 (Webcam)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/camera_client.py",
+      "args": [
+        "--camera", "0",
+        "--server", "tcp://localhost:5555",
+        "--name", "camera_0",
+        "--fps", "30"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "📷 Camera Client 1 (Webcam)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/camera_client.py",
+      "args": [
+        "--camera", "1",
+        "--server", "tcp://localhost:5566",
+        "--name", "camera_1",
+        "--fps", "30"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "🎬 Camera Client (Video File)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/camera_client.py",
+      "args": [
+        "--camera", "test_video.mp4",
+        "--server", "tcp://localhost:5555",
+        "--name", "camera_0",
+        "--fps", "30"
+      ],
+      "env": {
+        "PYTHONPATH": "${workspaceFolder}"
+      },
+      "console": "integratedTerminal"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.debugpy",
+    "ms-python.black-formatter",
+    "ms-python.pylint",
+    "ms-toolsai.jupyter",
+    "42crunch.vscode-openapi",
+    "humao.rest-client",
+    "rangav.vscode-thunder-client",
+    "mtxr.sqltools",
+    "mtxr.sqltools-driver-sqlite",
+    "eamodio.gitlens",
+    "esbenp.prettier-vscode"
+  ]
+}
