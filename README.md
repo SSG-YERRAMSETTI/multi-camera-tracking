@@ -15,6 +15,8 @@ source venv/bin/activate       # Mac/Linux
 
 pip install -r requirements.txt
 
+pip install ultralytics
+
 # Terminal 1 — Start server
 python -m uvicorn backend.app:app --host 0.0.0.0 --port 8000 --reload
 
